@@ -1,26 +1,18 @@
-import { sendNotification } from '../../lib/farcaster';
 import { Redis } from '@upstash/redis';
+import { sendNotification } from '../../lib/wallet';
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { action, coin, fid, contractAddress, creator, coinName } = req.body;
+    const { action, coin, fid } = req.body;
+    const key = `watchers:${fid}`;
     if (action === 'watch') {
-      await redis.sadd(`watchers:${coin.address}`, fid);
+      await redis.sadd(key, coin.address);
       return res.status(200).json({ ok: true });
     }
-    const watchers = await redis.smembers(`watchers:${contractAddress}`);
-    await Promise.all(
-      watchers.map(fid =>
-        sendNotification(fid, `Kreator ${creator} memposting koin ${coinName}!`)
-      )
-    );
-    return res.status(200).json({ ok: true, notified: watchers.length });
+    // else handle notify mode as needed…
   }
-  res.setHeader('Allow', ['POST']);
-  res.status(405).end(`Method ${req.method} not allowed`);
+  res.setHeader('Allow',['POST']);
+  res.status(405).end();
 }
