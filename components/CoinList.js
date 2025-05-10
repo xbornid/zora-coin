@@ -1,12 +1,8 @@
-import React, { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import Link from 'next/link';
-import {
-  fetchTopCoins,
-  searchCreatorsByUsername,
-  fetchCoinsByCreator
-} from '../lib/zora';
-import TokenCard from './TokenCard';
 import { AuthContext } from '../context/AuthContext';
+import { fetchTopCoins, searchCreatorsByUsername, fetchCoinsByCreator } from '../lib/zora';
+import TokenCard from './TokenCard';
 
 export default function CoinList({ search }) {
   const { account } = useContext(AuthContext);
@@ -17,43 +13,39 @@ export default function CoinList({ search }) {
     (async () => {
       setCoins(null);
       const list = [];
-      try {
-        if (search && search.trim()) {
-          const creators = await searchCreatorsByUsername(search.trim());
-          for (const c of creators) {
-            const tokens = await fetchCoinsByCreator(c.address);
-            tokens.forEach(t => list.push({ ...t, creatorHandle: c.handle }));
-          }
-        } else {
-          const tops = await fetchTopCoins();
-          tops.forEach(t => list.push({ ...t, creatorHandle: null }));
+      if (search) {
+        const creators = await searchCreatorsByUsername(search);
+        for (let c of creators) {
+          const tokens = await fetchCoinsByCreator(c.address);
+          tokens.forEach(t => list.push({ ...t, creatorHandle: c.handle }));
         }
-      } catch (err) {
-        console.error('[CoinList] error:', err);
+      } else {
+        const top = await fetchTopCoins();
+        top.forEach(t => list.push({ ...t, creatorHandle: null }));
       }
       setCoins(list);
     })();
   }, [search]);
 
-  if (coins === null) return <p className="text-center text-gray-500">Memuat koin…</p>;
-  if (!coins.length) return <p className="text-center text-gray-500">Tidak ada koin.</p>;
+  if (coins === null) return <p>Memuat koin…</p>;
+  if (!coins.length) return <p>Tidak ada koin.</p>;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {coins.map(c => (
         <Link key={c.address} href={`/coin/${c.address}`} passHref>
-          <a className="block">
+          <a>
             <TokenCard
               coin={c}
               onBuy={() => alert('Buka detail untuk Buy')}
               onSell={() => alert('Buka detail untuk Sell')}
-              onWatch={async () => {
-                await fetch('/api/webhook', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'watch', coin: c, fid: account }),
+              onWatch={() => {
+                fetch('/api/webhook', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({action:'watch',coin:c,fid:account})
                 });
-                setWatched(w => ({ ...w, [c.address]: !w[c.address] }));
+                setWatched(w=>({...w,[c.address]:!w[c.address]}));
               }}
               watched={!!watched[c.address]}
             />
