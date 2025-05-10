@@ -10,7 +10,7 @@ export default function Home() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Cari kreator Zora (handle)..."
           className="w-full p-2 border rounded"
         />
