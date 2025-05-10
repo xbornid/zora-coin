@@ -1,67 +1,43 @@
-import React from 'react';
+import { useRouter } from 'next/router';
+import { useEffect, useState, useContext } from 'react';
 import Layout from '../../components/Layout';
 import { fetchCoinDetails, fetchCoinHistory } from '../../lib/zora';
+import { AuthContext } from '../../context/AuthContext';
 import { parseEther } from 'ethers';
-import { useWarplet } from '../../lib/wallet';
 
-export default function CoinDetail({ coin, history }) {
-  const { signer } = useWarplet();
+export default function CoinDetail() {
+  const { signer } = useContext(AuthContext);
+  const { query } = useRouter();
+  const [coin, setCoin] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    if (!query.address) return;
+    fetchCoinDetails(query.address).then(setCoin);
+    fetchCoinHistory(query.address).then(data => setHistory(data.events || []));
+  }, [query.address]);
+
+  if (!coin) return <Layout><p>Memuat detail...</p></Layout>;
 
   return (
     <Layout>
-      <h1 className="text-2xl font-bold mb-2">{coin.name} ({coin.symbol})</h1>
-      <p>Creator: {coin.creatorAddress || '–'}</p>
-      <p>Market Cap: ${Number(coin.marketCap).toLocaleString()}</p>
+      <h1 className="text-2xl font-bold">{coin.name} ({coin.symbol})</h1>
+      <p>Kreator: {coin.creatorHandle || coin.owner}</p>
+      <p>Market Cap: ${coin.marketCap?.toLocaleString() || 'N/A'}</p>
+
+      <div className="mt-4 flex space-x-3">
+        <button onClick={() => alert('Buy placeholder')} className="px-4 py-2 bg-green-500 text-white rounded">Buy</button>
+        <button onClick={() => alert('Sell placeholder')} className="px-4 py-2 bg-red-500 text-white rounded">Sell</button>
+      </div>
 
       <section className="mt-6">
-        <h2 className="text-xl font-semibold mb-2">Riwayat Transaksi</h2>
-        <ul className="list-disc pl-5 space-y-1">
-          {history.map((h, i) => (
-            <li key={i}>
-              {h.type} – {h.amount} –{' '}
-              <a
-                href={`https://etherscan.io/tx/${h.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600"
-              >
-                {h.txHash.slice(0, 10)}…
-              </a>
-            </li>
-          ))}
-        </ul>
+        <h2 className="font-semibold">Riwayat Transaksi</h2>
+        {history.length
+          ? history.map((h, i) => (
+              <div key={i}>[{h.type}] {h.amount} – {h.txHash.slice(0,10)}…</div>
+            ))
+          : <p>Tidak ada riwayat.</p>}
       </section>
-
-      <div className="mt-6 flex space-x-3">
-        <button
-          onClick={async () => {
-            if (!signer) return alert('Wallet belum siap');
-            const tx = await signer.sendTransaction({ to: coin.address, value: parseEther('0.1') });
-            await tx.wait();
-            alert(`Pembelian berhasil! TX ${tx.hash}`);
-          }}
-          className="px-4 py-2 bg-green-500 text-white rounded"
-        >
-          Buy
-        </button>
-        <button
-          onClick={async () => {
-            if (!signer) return alert('Wallet belum siap');
-            const tx = await signer.sendTransaction({ to: coin.owner, data: '0x' });
-            await tx.wait();
-            alert(`Penjualan berhasil! TX ${tx.hash}`);
-          }}
-          className="px-4 py-2 bg-red-500 text-white rounded"
-        >
-          Sell
-        </button>
-      </div>
     </Layout>
   );
-}
-
-export async function getServerSideProps({ params }) {
-  const coin = await fetchCoinDetails(params.address);
-  const history = await fetchCoinHistory(params.address);
-  return { props: { coin, history } };
 }
